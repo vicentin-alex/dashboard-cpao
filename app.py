@@ -83,19 +83,19 @@ if not df_original.empty:
     if "Status_Amostra" in df.columns:
         # 1. Amostras Prontas
         prontas = len(df[df["Status_Amostra"] == "PRONTAS"])
-        m1.metric("AMOSTRAS PRONTAS", prontas)
+        m1.metric("BOLETIM PRONTO", prontas)
         
         # 2. Amostras em Análise
         em_analise = len(df[df["Status_Amostra"] == "EM ANÁLISE"])
-        m2.metric("EM ANÁLISE", em_analise)
+        m2.metric("BOLETIM EM ANÁLISE", em_analise)
         
         # 3. Amostras na Fila
         na_fila = len(df[df["Status_Amostra"] == "NA FILA"])
-        m3.metric("NA FILA", na_fila)
+        m3.metric("BOLETIM NA FILA", na_fila)
         
         # 4. Amostras Não Entregues
         nao_entregue = len(df[df["Status_Amostra"] == "NÃO ENTREGUE"])
-        m4.metric("NÃO ENTREGUE", nao_entregue)
+        m4.metric("BOLETIM REGISTRADO VIRTUALMENTE", nao_entregue)
 
     st.markdown("---")
 
@@ -132,6 +132,7 @@ if not df_original.empty:
         st.dataframe(df, use_container_width=True, hide_index=True)
     else:
         st.warning("Nenhum dado encontrado para a combinação de filtros selecionada.")
+
 
 
 
