@@ -83,7 +83,7 @@ if not df_original.empty:
     if "Status_Amostra" in df.columns:
         # 1. Amostras Prontas
         prontas = len(df[df["Status_Amostra"] == "PRONTAS"])
-        m1.metric("Amostras PRONTAS", prontas)
+        m1.metric("AMOSTRAS PRONTAS", prontas)
         
         # 2. Amostras em Análise
         em_analise = len(df[df["Status_Amostra"] == "EM ANÁLISE"])
@@ -132,6 +132,7 @@ if not df_original.empty:
         st.dataframe(df, use_container_width=True, hide_index=True)
     else:
         st.warning("Nenhum dado encontrado para a combinação de filtros selecionada.")
+
 
 
 
