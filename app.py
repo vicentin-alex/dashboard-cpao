@@ -19,7 +19,7 @@ import streamlit as st
 
 
 st.set_page_config(
-        page_title="Laboratório de Análises Físico-Químicas_CPAO",
+        page_title="Dashboard_SGL",
         layout="wide"
 )
 st.title("🔬 Laboratório de Análises Físico-Químicas_CPAO")
@@ -114,4 +114,5 @@ try:
 
 except Exception as e:
         st.error(f"Erro: {e}")
+
 
