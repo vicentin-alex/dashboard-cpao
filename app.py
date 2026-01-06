@@ -78,7 +78,7 @@ if not df_original.empty:
     # 0. Quantidade Total (Soma da coluna Qtdade)
     if "Qtdade" in df.columns:
         total_volume = int(df['Qtdade'].sum())
-        m0.metric("Volume Total (Qtd)", f"{total_volume:,}".replace(',', '.'))
+        m0.metric("QUANTIDADE REGISTRADA", f"{total_volume:,}".replace(',', '.'))
 
     if "Status_Amostra" in df.columns:
         # 1. Amostras Prontas
@@ -132,6 +132,7 @@ if not df_original.empty:
         st.dataframe(df, use_container_width=True, hide_index=True)
     else:
         st.warning("Nenhum dado encontrado para a combinação de filtros selecionada.")
+
 
 
 
