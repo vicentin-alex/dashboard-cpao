@@ -3,11 +3,23 @@ import pandas as pd
 import plotly.express as px
 import urllib.parse
 
-# 1. CONFIGURAÇÃO DA PÁGINA (Aba do navegador)
+# 1. CONFIGURAÇÃO DA PÁGINA
 st.set_page_config(
     page_title="Dashboard_SGL",
-    layout="wide"
+    layout="wide",
+    page_icon="🔬"
 )
+
+# --- ADICIONAR LOGO NA BARRA LATERAL ---
+# Substitua o link abaixo pelo link da sua imagem no GitHub ou use uma imagem da web
+URL_LOGO = "https://github.com/vicentin-alex/dashboard-cpao/blob/e63985cb9e8e98cd023223943a2b8d76211af42a/Lablogo.png" 
+
+with st.sidebar:
+    try:
+        st.image(URL_LOGO, use_container_width=True)
+    except:
+        st.sidebar.write("🔬 **CPAO Lab**") # Texto reserva caso a imagem falhe
+    st.markdown("---")
 
 # 2. CONFIGURAÇÃO DO GOOGLE SHEETS
 SHEET_ID = "1PchyFqFOQ8A80xiBAkUZbqfyKbTzrQZwBuhJllMCVSk"
@@ -91,6 +103,7 @@ if not df_original.empty:
         st.dataframe(df, use_container_width=True, hide_index=True)
     else:
         st.warning("Nenhum dado encontrado para a combinação de filtros selecionada.")
+
 
 
 
