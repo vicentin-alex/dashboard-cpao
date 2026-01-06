@@ -9,21 +9,18 @@ st.set_page_config(
     layout="wide",
     page_icon="🔬"
 )
+
 # --- ADICIONAR LOGO NA BARRA LATERAL ---
+# CORREÇÃO: Link direto (RAW) para a imagem
 URL_LOGO = "https://raw.githubusercontent.com/vicentin-alex/dashboard-cpao/main/Lablogo.png"
 
 with st.sidebar:
-    # Centraliza a logo e trata erro caso o link mude
     try:
         st.image(URL_LOGO, use_container_width=True)
     except:
-        st.markdown("### 🔬 CPAO Lab") 
+        st.markdown("### 🔬 **CPAO Lab**") # Texto reserva caso a imagem falhe
     st.markdown("---")
-    
-st.sidebar.header("Período")
-data_inicio = st.sidebar.date_input("Início", df['Data'].min())
-data_fim = st.sidebar.date_input("Fim", df['Data'].max())
-df = df[(df['Data'].dt.date >= data_inicio) & (df['Data'].dt.date <= data_fim)]
+
 # 2. CONFIGURAÇÃO DO GOOGLE SHEETS
 SHEET_ID = "1PchyFqFOQ8A80xiBAkUZbqfyKbTzrQZwBuhJllMCVSk"
 SHEET_NAME = "REGISTRO"
@@ -66,10 +63,11 @@ if not df_original.empty:
         for col in colunas_para_filtrar:
             if col in df.columns:
                 opcoes = sorted(df[col].dropna().unique().tolist())
+                # Filtros iniciam vazios (mostrando tudo)
                 selecao = st.multiselect(f"Filtrar {col}:", options=opcoes)
                 escolhas_usuario[col] = selecao
 
-    # Lógica de Filtragem
+    # Lógica de Filtragem Independente
     for col, selecao in escolhas_usuario.items():
         if selecao:
             df = df[df[col].isin(selecao)]
@@ -106,8 +104,6 @@ if not df_original.empty:
         st.dataframe(df, use_container_width=True, hide_index=True)
     else:
         st.warning("Nenhum dado encontrado para a combinação de filtros selecionada.")
-
-
 
 
 
