@@ -70,20 +70,33 @@ if not df_original.empty:
         if selecao:
             df = df[df[col].isin(selecao)]
 
-    # --- MÉTRICAS ---
+   # --- MÉTRICAS PERSONALIZADAS ---
+    st.markdown("---")
     m1, m2, m3, m4 = st.columns(4)
-    m1.metric("Amostras Exibidas", len(df))
     
-    if "Qtdade" in df.columns:
-        m2.metric("Qtd Total", f"{int(df['Qtdade'].sum()):,}".replace(',', '.'))
-    
-    if "Química" in df.columns:
-        m3.metric("Ensaios Química", df["Química"].notna().sum())
+    if "Status_Amostra" in df.columns:
+        # 1. Amostras Prontas
+        prontas = len(df[df["Status_Amostra"] == "PRONTAS"])
+        m1.metric("Amostras Prontas", prontas)
         
-    if "Física" in df.columns:
-        m4.metric("Ensaios Física", df["Física"].notna().sum())
+        # 2. Amostras em Análise
+        em_analise = len(df[df["Status_Amostra"] == "EM ANÁLISE"])
+        m2.metric("Em Análise", em_analise)
+        
+        # 3. Amostras na Fila
+        na_fila = len(df[df["Status_Amostra"] == "NA FILA"])
+        m3.metric("Na Fila", na_fila)
+        
+        # 4. Amostras Não Entregues
+        nao_entregue = len(df[df["Status_Amostra"] == "NÃO ENTREGUE"])
+        m4.metric("Não Entregue", nao_entregue)
 
     st.markdown("---")
+    
+    # Métrica de Quantidade Total (Opcional: você pode colocar abaixo das colunas se quiser)
+    if "Qtdade" in df.columns:
+        total_geral = int(df['Qtdade'].sum())
+        st.write(f"**Volume Total de Amostras (Qtdade):** {total_geral}")
 
     # --- GRÁFICOS COM CORES PERSONALIZADAS ---
     if not df.empty:
@@ -118,6 +131,7 @@ if not df_original.empty:
         st.dataframe(df, use_container_width=True, hide_index=True)
     else:
         st.warning("Nenhum dado encontrado para a combinação de filtros selecionada.")
+
 
 
 
