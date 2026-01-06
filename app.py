@@ -70,33 +70,34 @@ if not df_original.empty:
         if selecao:
             df = df[df[col].isin(selecao)]
 
-   # --- MÉTRICAS PERSONALIZADAS ---
+   # --- MÉTRICAS PERSONALIZADAS COM TOTAL DE QTDADE ---
     st.markdown("---")
-    m1, m2, m3, m4 = st.columns(4)
+    # Criando 5 colunas para acomodar todas as métricas no topo
+    m0, m1, m2, m3, m4 = st.columns(5)
     
+    # 0. Quantidade Total (Soma da coluna Qtdade)
+    if "Qtdade" in df.columns:
+        total_volume = int(df['Qtdade'].sum())
+        m0.metric("Volume Total (Qtd)", f"{total_volume:,}".replace(',', '.'))
+
     if "Status_Amostra" in df.columns:
         # 1. Amostras Prontas
         prontas = len(df[df["Status_Amostra"] == "PRONTAS"])
-        m1.metric("Amostras Prontas", prontas)
+        m1.metric("Amostras PRONTAS", prontas)
         
         # 2. Amostras em Análise
         em_analise = len(df[df["Status_Amostra"] == "EM ANÁLISE"])
-        m2.metric("Em Análise", em_analise)
+        m2.metric("EM ANÁLISE", em_analise)
         
         # 3. Amostras na Fila
         na_fila = len(df[df["Status_Amostra"] == "NA FILA"])
-        m3.metric("Na Fila", na_fila)
+        m3.metric("NA FILA", na_fila)
         
         # 4. Amostras Não Entregues
         nao_entregue = len(df[df["Status_Amostra"] == "NÃO ENTREGUE"])
-        m4.metric("Não Entregue", nao_entregue)
+        m4.metric("NÃO ENTREGUE", nao_entregue)
 
     st.markdown("---")
-    
-    # Métrica de Quantidade Total (Opcional: você pode colocar abaixo das colunas se quiser)
-    if "Qtdade" in df.columns:
-        total_geral = int(df['Qtdade'].sum())
-        st.write(f"**Volume Total de Amostras (Qtdade):** {total_geral}")
 
     # --- GRÁFICOS COM CORES PERSONALIZADAS ---
     if not df.empty:
@@ -131,6 +132,7 @@ if not df_original.empty:
         st.dataframe(df, use_container_width=True, hide_index=True)
     else:
         st.warning("Nenhum dado encontrado para a combinação de filtros selecionada.")
+
 
 
 
