@@ -23,7 +23,14 @@ st.set_page_config(
         layout="wide"
 )
 st.title("🔬 Laboratório de Análises Físico-Químicas_CPAO")
-
+# Adicione isso para remover títulos automáticos indesejados se necessário
+st.markdown("""
+    <style>
+    .st-emotion-cache-10trblm {
+        display: none;
+    }
+    </style>
+    """, unsafe_allow_html=True)
 
 
 
@@ -114,5 +121,6 @@ try:
 
 except Exception as e:
         st.error(f"Erro: {e}")
+
 
 
