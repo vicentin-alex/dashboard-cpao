@@ -19,7 +19,11 @@ with st.sidebar:
     except:
         st.markdown("### 🔬 CPAO Lab") 
     st.markdown("---")
-
+    
+st.sidebar.header("Período")
+data_inicio = st.sidebar.date_input("Início", df['Data'].min())
+data_fim = st.sidebar.date_input("Fim", df['Data'].max())
+df = df[(df['Data'].dt.date >= data_inicio) & (df['Data'].dt.date <= data_fim)]
 # 2. CONFIGURAÇÃO DO GOOGLE SHEETS
 SHEET_ID = "1PchyFqFOQ8A80xiBAkUZbqfyKbTzrQZwBuhJllMCVSk"
 SHEET_NAME = "REGISTRO"
@@ -102,6 +106,7 @@ if not df_original.empty:
         st.dataframe(df, use_container_width=True, hide_index=True)
     else:
         st.warning("Nenhum dado encontrado para a combinação de filtros selecionada.")
+
 
 
 
