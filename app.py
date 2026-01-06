@@ -9,16 +9,15 @@ st.set_page_config(
     layout="wide",
     page_icon="🔬"
 )
-
 # --- ADICIONAR LOGO NA BARRA LATERAL ---
-# Substitua o link abaixo pelo link da sua imagem no GitHub ou use uma imagem da web
-URL_LOGO = "https://github.com/vicentin-alex/dashboard-cpao/blob/e63985cb9e8e98cd023223943a2b8d76211af42a/Lablogo.png" 
+URL_LOGO = "https://raw.githubusercontent.com/vicentin-alex/dashboard-cpao/main/Lablogo.png"
 
 with st.sidebar:
+    # Centraliza a logo e trata erro caso o link mude
     try:
         st.image(URL_LOGO, use_container_width=True)
     except:
-        st.sidebar.write("🔬 **CPAO Lab**") # Texto reserva caso a imagem falhe
+        st.markdown("### 🔬 CPAO Lab") 
     st.markdown("---")
 
 # 2. CONFIGURAÇÃO DO GOOGLE SHEETS
@@ -103,6 +102,7 @@ if not df_original.empty:
         st.dataframe(df, use_container_width=True, hide_index=True)
     else:
         st.warning("Nenhum dado encontrado para a combinação de filtros selecionada.")
+
 
 
 
