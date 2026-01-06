@@ -1,4 +1,4 @@
-﻿%%writefile app.py
+
 import streamlit as st
 import pandas as pd
 import plotly.express as px
@@ -114,3 +114,4 @@ try:
 
 except Exception as e:
         st.error(f"Erro: {e}")
+
