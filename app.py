@@ -56,7 +56,7 @@ if not df_original.empty:
         st.header("Painel de Filtros")
         colunas_para_filtrar = [
             "Status_Amostra", "Matriz", "Demandante",
-            "Projeto", "Registrado por:", "Amostra entregue por:"
+            "Projeto", "Boletim", "Técnico Responsável"
         ]
         
         escolhas_usuario = {}
@@ -132,6 +132,7 @@ if not df_original.empty:
         st.dataframe(df, use_container_width=True, hide_index=True)
     else:
         st.warning("Nenhum dado encontrado para a combinação de filtros selecionada.")
+
 
 
 
