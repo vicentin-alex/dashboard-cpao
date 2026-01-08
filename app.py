@@ -84,7 +84,7 @@ if not df_original.empty:
 
         # --- LÓGICA DE EXIBIÇÃO DE COLUNAS (MODO EDITOR VS CLIENTE) ---
         todas_colunas = df.columns.tolist()
-        colunas_cliente = ["Boletim", "Preparo", "Status_Amostra", "Link do Boletim"]
+        colunas_cliente = ["Status_Amostra", "Boletim", "Link do Boletim", "Data", "Identificação Lab (Início)", "Identificação Lab (Final)", "Qtdade", "Matriz", "Demandante", "Projeto","Ordem de Serviço", "Técnico 1", "Prazo 1", "Técnico 2", "Prazo 2", "Técnico 3", "Prazo 3", "Técnico 4", "Prazo 4", "Técnico 5", "Prazo 5", "Técnico 6", "Prazo 6"]
         colunas_cliente = [c for c in colunas_cliente if c in todas_colunas]
 
         if e_editor:
@@ -156,6 +156,7 @@ if not df_original.empty:
         
     else:
         st.warning("Nenhum dado encontrado para os filtros selecionados.")
+
 
 
 
