@@ -31,16 +31,14 @@ URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sh
 
 # 3. TÍTULO ÚNICO NA PÁGINA
 st.title("🔬 Laboratório de Análises Físico-Químicas_CPAO")
-st.caption("Filtros independentes | Coluna Preparo integrada | Gráficos limpos")
+st.caption("Controle de Visualização de Colunas Ativado")
 st.markdown("---")
 
 @st.cache_data(ttl=30)
 def load_data():
     try:
         df = pd.read_csv(URL, encoding='utf-8')
-        
-        # --- CORREÇÃO PARA LINHAS VAZIAS ---
-        # Consideramos linha válida se houver Boletim ou Status (evita ler linhas em branco do final da planilha)
+        # Limpeza de linhas totalmente vazias do final da planilha
         colunas_chave = ["Boletim", "Status_Amostra"]
         existentes = [c for c in colunas_chave if c in df.columns]
         if existentes:
@@ -59,9 +57,9 @@ if not df_original.empty:
     df = df_original.copy()
 
     with st.sidebar:
-        st.header("Painel de Filtros")
+        st.header("⚙️ Painel de Filtros")
         
-        # --- FILTRO UNIFICADO DE TÉCNICOS (1 a 6) ---
+        # --- FILTRO UNIFICADO DE TÉCNICOS ---
         col_tecnicos = ["Técnico 1", "Técnico 2", "Técnico 3", "Técnico 4", "Técnico 5", "Técnico 6"]
         col_presentes = [c for c in col_tecnicos if c in df.columns]
         
@@ -72,14 +70,28 @@ if not df_original.empty:
         else:
             selecao_tecnicos = []
 
-        # --- OUTROS FILTROS (Incluindo a nova coluna Preparo) ---
-        colunas_filtros_extras = ["Status_Amostra", "Matriz", "Demandante", "Projeto", "Boletim"]
+        # --- OUTROS FILTROS ---
+        colunas_filtros_extras = ["Preparo", "Status_Amostra", "Matriz", "Demandante", "Projeto", "Boletim"]
         escolhas_usuario = {}
-        
         for col in colunas_filtros_extras:
             if col in df.columns:
                 opcoes = sorted(df[col].dropna().unique().tolist())
                 escolhas_usuario[col] = st.multiselect(f"Filtrar {col}:", options=opcoes)
+
+        # --- NOVO: SELEÇÃO PERSISTENTE DE COLUNAS ---
+        st.markdown("---")
+        st.subheader("🖥️ Ajuste de Exibição")
+        todas_colunas = df.columns.tolist()
+        
+        # Definimos o que aparece por padrão ao abrir
+        colunas_default = ["Boletim", "Preparo", "Status_Amostra", "Técnico 1", "Prazo 1", "Link do Boletim"]
+        colunas_default = [c for c in colunas_default if c in todas_colunas]
+        
+        colunas_visiveis = st.multiselect(
+            "Colunas visíveis na tabela:",
+            options=todas_colunas,
+            default=colunas_default
+        )
 
     # --- LÓGICA DE FILTRAGEM ---
     if selecao_tecnicos and col_presentes:
@@ -92,7 +104,6 @@ if not df_original.empty:
     # --- MÉTRICAS ---
     st.markdown("---")
     m0, m1, m2, m3, m4 = st.columns(5)
-    
     if "Qtdade" in df.columns:
         total = int(df['Qtdade'].sum())
         m0.metric("QUANTIDADE TOTAL", f"{total:,}".replace(',', '.'))
@@ -130,13 +141,16 @@ if not df_original.empty:
                 help="Clique para abrir o link oficial do boletim"
             )
 
-        # A tabela exibirá todas as colunas (incluindo Preparo) na ordem da planilha
-        st.dataframe(
-            df, 
-            use_container_width=True, 
-            hide_index=True,
-            column_config=config_colunas
-        )
+        # Exibe apenas as colunas selecionadas no multiselect da sidebar
+        if colunas_visiveis:
+            st.dataframe(
+                df[colunas_visiveis], 
+                use_container_width=True, 
+                hide_index=True,
+                column_config=config_colunas
+            )
+        else:
+            st.warning("Selecione pelo menos uma coluna no painel lateral para visualizar os detalhes.")
         
     else:
         st.warning("Nenhum dado encontrado para os filtros selecionados.")
