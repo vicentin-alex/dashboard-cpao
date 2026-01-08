@@ -13,7 +13,7 @@ st.set_page_config(
 # --- PALETA DE CORES PERSONALIZADA ---
 CORES_LAB = ['#004a88', '#28a745', '#ffc107', '#007bff', '#6c757d']
 
-# --- ADICIONAR LOGO NA BARRA LATERAL ---
+# --- LOGO NA BARRA LATERAL ---
 URL_LOGO = "https://raw.githubusercontent.com/vicentin-alex/dashboard-cpao/main/Lablogo.png"
 
 with st.sidebar:
@@ -27,18 +27,21 @@ with st.sidebar:
 SHEET_ID = "1PchyFqFOQ8A80xiBAkUZbqfyKbTzrQZwBuhJllMCVSk"
 SHEET_NAME = "REGISTRO"
 encoded_sheet_name = urllib.parse.quote(SHEET_NAME)
+# A URL foi simplificada para garantir a captura de todas as colunas
 URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet={encoded_sheet_name}"
 
 # 3. TÍTULO ÚNICO NA PÁGINA
 st.title("🔬 Laboratório de Análises Físico-Químicas_CPAO")
-st.caption("Filtros independentes: Deixe vazio para selecionar tudo.")
+st.caption("Visualização Completa de Colunas - Filtros Independentes")
 st.markdown("---")
 
 @st.cache_data(ttl=30)
 def load_data():
     try:
+        # Carregamento bruto sem remoção de colunas vazias
         df = pd.read_csv(URL, encoding='utf-8')
-        # CORREÇÃO: Removido o dropna(axis=1) para não sumir com colunas de prazos vazias
+        
+        # Tratamento básico de data apenas se a coluna existir
         if 'Data' in df.columns:
             df['Data'] = pd.to_datetime(df['Data'], errors='coerce')
         return df
@@ -55,33 +58,35 @@ if not df_original.empty:
         st.header("Painel de Filtros")
         
         # --- FILTRO UNIFICADO DE TÉCNICOS ---
-        colunas_tecnicos = ["Técnico 1", "Técnico 2", "Técnico 3", "Técnico 4", "Técnico 5", "Técnico 6"]
+        # Definimos os nomes das colunas de técnicos conforme a sua planilha
+        col_tecnicos = ["Técnico 1", "Técnico 2", "Técnico 3", "Técnico 4", "Técnico 5", "Técnico 6"]
         
-        # Identifica quais colunas de técnico realmente existem na planilha
-        colunas_existentes = [c for c in colunas_tecnicos if c in df.columns]
+        # Filtramos apenas as que realmente foram lidas pelo pandas
+        col_presentes = [c for c in col_tecnicos if c in df.columns]
         
-        if colunas_existentes:
-            lista_todos_tecnicos = pd.unique(df[colunas_existentes].values.ravel('K'))
-            lista_todos_tecnicos = sorted([x for x in lista_todos_tecnicos if str(x) != 'nan' and str(x) != 'None'])
-            selecao_tecnicos = st.multiselect("Filtrar por Técnico:", options=lista_todos_tecnicos)
+        if col_presentes:
+            # Captura todos os nomes únicos ignorando os vazios (NaN)
+            nomes_unicos = pd.unique(df[col_presentes].values.ravel('K'))
+            opcoes_tecnicos = sorted([str(x) for x in nomes_unicos if pd.notna(x) and str(x).strip() != ''])
+            selecao_tecnicos = st.multiselect("Filtrar por Técnico (1 a 6):", options=opcoes_tecnicos)
         else:
             selecao_tecnicos = []
 
-        # --- DEMAIS FILTROS ---
-        colunas_para_filtrar = ["Status_Amostra", "Matriz", "Demandante", "Projeto", "Boletim"]
-        
+        # --- OUTROS FILTROS ---
+        colunas_filtros_extras = ["Status_Amostra", "Matriz", "Demandante", "Projeto", "Boletim"]
         escolhas_usuario = {}
-        for col in colunas_para_filtrar:
+        
+        for col in colunas_filtros_extras:
             if col in df.columns:
                 opcoes = sorted(df[col].dropna().unique().tolist())
-                selecao = st.multiselect(f"Filtrar {col}:", options=opcoes)
-                escolhas_usuario[col] = selecao
+                escolhas_usuario[col] = st.multiselect(f"Filtrar {col}:", options=opcoes)
 
-    # --- APLICAÇÃO DA LÓGICA DE FILTRAGEM ---
-    if selecao_tecnicos and colunas_existentes:
-        mascara_tecnico = df[colunas_existentes].isin(selecao_tecnicos).any(axis=1)
-        df = df[mascara_tecnico]
+    # --- LÓGICA DE FILTRAGEM ---
+    # Filtro de Técnicos (Busca em todas as colunas de técnico simultaneamente)
+    if selecao_tecnicos and col_presentes:
+        df = df[df[col_presentes].isin(selecao_tecnicos).any(axis=1)]
 
+    # Filtros Adicionais
     for col, selecao in escolhas_usuario.items():
         if selecao:
             df = df[df[col].isin(selecao)]
@@ -90,15 +95,16 @@ if not df_original.empty:
     st.markdown("---")
     m0, m1, m2, m3, m4 = st.columns(5)
     
+    # Soma da Quantidade (Ajuste o nome 'Qtdade' se estiver diferente na planilha)
     if "Qtdade" in df.columns:
-        total_volume = int(df['Qtdade'].sum())
-        m0.metric("QUANTIDADE REGISTRADA", f"{total_volume:,}".replace(',', '.'))
+        total = int(df['Qtdade'].sum())
+        m0.metric("QUANTIDADE TOTAL", f"{total:,}".replace(',', '.'))
 
     if "Status_Amostra" in df.columns:
-        m1.metric("BOLETIM PRONTO", len(df[df["Status_Amostra"] == "PRONTAS"]))
-        m2.metric("BOLETIM EM ANÁLISE", len(df[df["Status_Amostra"] == "EM ANÁLISE"]))
-        m3.metric("BOLETIM NA FILA", len(df[df["Status_Amostra"] == "NA FILA"]))
-        m4.metric("REGISTRADO VIRTUALMENTE", len(df[df["Status_Amostra"] == "NÃO ENTREGUE"]))
+        m1.metric("PRONTAS", len(df[df["Status_Amostra"] == "PRONTAS"]))
+        m2.metric("EM ANÁLISE", len(df[df["Status_Amostra"] == "EM ANÁLISE"]))
+        m3.metric("NA FILA", len(df[df["Status_Amostra"] == "NA FILA"]))
+        m4.metric("NÃO ENTREGUE", len(df[df["Status_Amostra"] == "NÃO ENTREGUE"]))
 
     st.markdown("---")
 
@@ -114,29 +120,15 @@ if not df_original.empty:
                 fig2 = px.bar(df, x="Demandante", y="Qtdade", color="Matriz" if "Matriz" in df.columns else None, title="Volume por Demandante", color_discrete_sequence=CORES_LAB)
                 st.plotly_chart(fig2, use_container_width=True)
 
-        # --- TABELA DE DETALHAMENTO (CORRIGIDA) ---
+        # --- TABELA DE DETALHAMENTO COMPLETA ---
         st.subheader("📋 Detalhamento das Amostras")
+        st.markdown("A tabela abaixo exibe todas as colunas identificadas na planilha.")
         
-        # Lista de colunas desejadas para garantir que apareçam na ordem certa
-        # Incluímos as colunas de Prazos aqui
-        ordem_colunas = [
-            "Boletim", "Status_Amostra", "Qtdade", "Matriz", 
-            "Técnico 1", "Prazo 1", 
-            "Técnico 2", "Prazo 2", 
-            "Técnico 3", "Prazo 3", 
-            "Técnico 4", "Prazo 4", 
-            "Técnico 5", "Prazo 5", 
-            "Técnico 6", "Prazo 6"
-        ]
+        # Exibe o dataframe filtrado com TODAS as colunas originais
+        st.dataframe(df, use_container_width=True, hide_index=True)
         
-        # Filtra apenas as que existem no DF para evitar erros de visualização
-        colunas_finais = [c for c in ordem_colunas if c in df.columns]
-        
-        # Exibe o dataframe final
-        st.dataframe(df[colunas_finais], use_container_width=True, hide_index=True)
     else:
         st.warning("Nenhum dado encontrado para os filtros selecionados.")
-
 
 
 
