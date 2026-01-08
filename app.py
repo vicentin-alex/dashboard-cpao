@@ -31,14 +31,22 @@ URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sh
 
 # 3. TÍTULO ÚNICO NA PÁGINA
 st.title("🔬 Laboratório de Análises Físico-Químicas_CPAO")
-st.caption("Filtros independentes | Links clicáveis habilitados")
+st.caption("Filtros independentes | Gráficos limpos (sem valores nulos)")
 st.markdown("---")
 
 @st.cache_data(ttl=30)
 def load_data():
     try:
-        # Carregamento completo sem remover colunas vazias
         df = pd.read_csv(URL, encoding='utf-8')
+        
+        # --- CORREÇÃO PARA LINHAS VAZIAS ---
+        # Remove linhas onde as colunas essenciais estão vazias (ignora o "lixo" do final da planilha)
+        # Consideramos uma linha válida se ela tiver pelo menos um "Boletim" ou "Status_Amostra"
+        colunas_chave = ["Boletim", "Status_Amostra"]
+        existentes = [c for c in colunas_chave if c in df.columns]
+        if existentes:
+            df = df.dropna(subset=existentes, how='all')
+        
         if 'Data' in df.columns:
             df['Data'] = pd.to_datetime(df['Data'], errors='coerce')
         return df
@@ -91,10 +99,12 @@ if not df_original.empty:
         m0.metric("QUANTIDADE TOTAL", f"{total:,}".replace(',', '.'))
 
     if "Status_Amostra" in df.columns:
-        m1.metric("PRONTAS", len(df[df["Status_Amostra"] == "PRONTAS"]))
-        m2.metric("EM ANÁLISE", len(df[df["Status_Amostra"] == "EM ANÁLISE"]))
-        m3.metric("NA FILA", len(df[df["Status_Amostra"] == "NA FILA"]))
-        m4.metric("NÃO ENTREGUE", len(df[df["Status_Amostra"] == "NÃO ENTREGUE"]))
+        # Filtramos para contar apenas o que não é nulo
+        status_valido = df[df["Status_Amostra"].notna()]
+        m1.metric("PRONTAS", len(status_valido[status_valido["Status_Amostra"] == "PRONTAS"]))
+        m2.metric("EM ANÁLISE", len(status_valido[status_valido["Status_Amostra"] == "EM ANÁLISE"]))
+        m3.metric("NA FILA", len(status_valido[status_valido["Status_Amostra"] == "NA FILA"]))
+        m4.metric("NÃO ENTREGUE", len(status_valido[status_valido["Status_Amostra"] == "NÃO ENTREGUE"]))
 
     st.markdown("---")
 
@@ -103,7 +113,15 @@ if not df_original.empty:
         c1, c2 = st.columns(2)
         with c1:
             if "Status_Amostra" in df.columns:
-                fig1 = px.pie(df, names="Status_Amostra", title="Distribuição por Status", hole=0.4, color_discrete_sequence=CORES_LAB)
+                # Removemos nulos apenas para o gráfico de pizza
+                df_pizza = df.dropna(subset=["Status_Amostra"])
+                fig1 = px.pie(
+                    df_pizza, 
+                    names="Status_Amostra", 
+                    title="Distribuição por Status", 
+                    hole=0.4, 
+                    color_discrete_sequence=CORES_LAB
+                )
                 st.plotly_chart(fig1, use_container_width=True)
         with c2:
             if "Demandante" in df.columns and "Qtdade" in df.columns:
@@ -113,8 +131,6 @@ if not df_original.empty:
         # --- TABELA DE DETALHAMENTO COM LINKS CLICÁVEIS ---
         st.subheader("📋 Detalhamento das Amostras")
         
-        # Criamos a configuração de colunas para tornar o link clicável
-        # O display_text faz com que apareça um ícone e texto em vez do link gigante
         config_colunas = {}
         if "Link do Boletim" in df.columns:
             config_colunas["Link do Boletim"] = st.column_config.LinkColumn(
@@ -123,7 +139,6 @@ if not df_original.empty:
                 help="Clique para abrir o link oficial do boletim"
             )
 
-        # Exibe o dataframe com a configuração de link
         st.dataframe(
             df, 
             use_container_width=True, 
@@ -133,4 +148,3 @@ if not df_original.empty:
         
     else:
         st.warning("Nenhum dado encontrado para os filtros selecionados.")
-
