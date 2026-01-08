@@ -31,7 +31,7 @@ URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sh
 
 # 3. TÍTULO ÚNICO NA PÁGINA
 st.title("🔬 Laboratório de Análises Físico-Químicas_CPAO")
-st.caption("Filtros independentes | Gráficos limpos (sem valores nulos)")
+st.caption("Filtros independentes | Coluna Preparo integrada | Gráficos limpos")
 st.markdown("---")
 
 @st.cache_data(ttl=30)
@@ -40,8 +40,7 @@ def load_data():
         df = pd.read_csv(URL, encoding='utf-8')
         
         # --- CORREÇÃO PARA LINHAS VAZIAS ---
-        # Remove linhas onde as colunas essenciais estão vazias (ignora o "lixo" do final da planilha)
-        # Consideramos uma linha válida se ela tiver pelo menos um "Boletim" ou "Status_Amostra"
+        # Consideramos linha válida se houver Boletim ou Status (evita ler linhas em branco do final da planilha)
         colunas_chave = ["Boletim", "Status_Amostra"]
         existentes = [c for c in colunas_chave if c in df.columns]
         if existentes:
@@ -62,7 +61,7 @@ if not df_original.empty:
     with st.sidebar:
         st.header("Painel de Filtros")
         
-        # --- FILTRO UNIFICADO DE TÉCNICOS ---
+        # --- FILTRO UNIFICADO DE TÉCNICOS (1 a 6) ---
         col_tecnicos = ["Técnico 1", "Técnico 2", "Técnico 3", "Técnico 4", "Técnico 5", "Técnico 6"]
         col_presentes = [c for c in col_tecnicos if c in df.columns]
         
@@ -73,8 +72,8 @@ if not df_original.empty:
         else:
             selecao_tecnicos = []
 
-        # --- OUTROS FILTROS ---
-        colunas_filtros_extras = ["Status_Amostra", "Matriz", "Demandante", "Projeto", "Boletim"]
+        # --- OUTROS FILTROS (Incluindo a nova coluna Preparo) ---
+        colunas_filtros_extras = ["Preparo", "Status_Amostra", "Matriz", "Demandante", "Projeto", "Boletim"]
         escolhas_usuario = {}
         
         for col in colunas_filtros_extras:
@@ -99,7 +98,6 @@ if not df_original.empty:
         m0.metric("QUANTIDADE TOTAL", f"{total:,}".replace(',', '.'))
 
     if "Status_Amostra" in df.columns:
-        # Filtramos para contar apenas o que não é nulo
         status_valido = df[df["Status_Amostra"].notna()]
         m1.metric("PRONTAS", len(status_valido[status_valido["Status_Amostra"] == "PRONTAS"]))
         m2.metric("EM ANÁLISE", len(status_valido[status_valido["Status_Amostra"] == "EM ANÁLISE"]))
@@ -113,22 +111,15 @@ if not df_original.empty:
         c1, c2 = st.columns(2)
         with c1:
             if "Status_Amostra" in df.columns:
-                # Removemos nulos apenas para o gráfico de pizza
                 df_pizza = df.dropna(subset=["Status_Amostra"])
-                fig1 = px.pie(
-                    df_pizza, 
-                    names="Status_Amostra", 
-                    title="Distribuição por Status", 
-                    hole=0.4, 
-                    color_discrete_sequence=CORES_LAB
-                )
+                fig1 = px.pie(df_pizza, names="Status_Amostra", title="Distribuição por Status", hole=0.4, color_discrete_sequence=CORES_LAB)
                 st.plotly_chart(fig1, use_container_width=True)
         with c2:
             if "Demandante" in df.columns and "Qtdade" in df.columns:
                 fig2 = px.bar(df, x="Demandante", y="Qtdade", color="Matriz" if "Matriz" in df.columns else None, title="Volume por Demandante", color_discrete_sequence=CORES_LAB)
                 st.plotly_chart(fig2, use_container_width=True)
 
-        # --- TABELA DE DETALHAMENTO COM LINKS CLICÁVEIS ---
+        # --- TABELA DE DETALHAMENTO ---
         st.subheader("📋 Detalhamento das Amostras")
         
         config_colunas = {}
@@ -139,6 +130,7 @@ if not df_original.empty:
                 help="Clique para abrir o link oficial do boletim"
             )
 
+        # A tabela exibirá todas as colunas (incluindo Preparo) na ordem da planilha
         st.dataframe(
             df, 
             use_container_width=True, 
