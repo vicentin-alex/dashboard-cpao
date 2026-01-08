@@ -22,6 +22,11 @@ with st.sidebar:
     except:
         st.markdown("### 🔬 **CPAO Lab**") 
     st.markdown("---")
+    
+    # --- ACESSO RESTRITO AO EDITOR ---
+    # Altere 'admin123' para a senha de sua preferência
+    senha_acesso = st.text_input("Acesso Interno", type="password", help="Digite a senha para habilitar ajustes de exibição.")
+    e_editor = (senha_acesso == "Acetona25@!")
 
 # 2. CONFIGURAÇÃO DO GOOGLE SHEETS
 SHEET_ID = "1PchyFqFOQ8A80xiBAkUZbqfyKbTzrQZwBuhJllMCVSk"
@@ -31,14 +36,13 @@ URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sh
 
 # 3. TÍTULO ÚNICO NA PÁGINA
 st.title("🔬 Laboratório de Análises Físico-Químicas_CPAO")
-st.caption("Controle de Visualização de Colunas Ativado")
+st.caption("Filtros independentes | Visualização otimizada")
 st.markdown("---")
 
 @st.cache_data(ttl=30)
 def load_data():
     try:
         df = pd.read_csv(URL, encoding='utf-8')
-        # Limpeza de linhas totalmente vazias do final da planilha
         colunas_chave = ["Boletim", "Status_Amostra"]
         existentes = [c for c in colunas_chave if c in df.columns]
         if existentes:
@@ -71,27 +75,29 @@ if not df_original.empty:
             selecao_tecnicos = []
 
         # --- OUTROS FILTROS ---
-        colunas_filtros_extras = ["Status_Amostra", "Matriz", "Demandante", "Projeto", "Boletim"]
+        colunas_filtros_extras = ["Preparo", "Status_Amostra", "Matriz", "Demandante", "Projeto", "Boletim"]
         escolhas_usuario = {}
         for col in colunas_filtros_extras:
             if col in df.columns:
                 opcoes = sorted(df[col].dropna().unique().tolist())
                 escolhas_usuario[col] = st.multiselect(f"Filtrar {col}:", options=opcoes)
 
-        # --- NOVO: SELEÇÃO PERSISTENTE DE COLUNAS ---
-        st.markdown("---")
-        st.subheader("🖥️ Ajuste de Exibição")
+        # --- LÓGICA DE EXIBIÇÃO DE COLUNAS (MODO EDITOR VS CLIENTE) ---
         todas_colunas = df.columns.tolist()
-        
-        # Definimos o que aparece por padrão ao abrir
-        colunas_default = ["Boletim", "Preparo", "Status_Amostra", "Técnico 1", "Prazo 1", "Link do Boletim"]
-        colunas_default = [c for c in colunas_default if c in todas_colunas]
-        
-        colunas_visiveis = st.multiselect(
-            "Colunas visíveis na tabela:",
-            options=todas_colunas,
-            default=colunas_default
-        )
+        colunas_cliente = ["Boletim", "Preparo", "Status_Amostra", "Link do Boletim"]
+        colunas_cliente = [c for c in colunas_cliente if c in todas_colunas]
+
+        if e_editor:
+            st.markdown("---")
+            st.success("🔓 Modo Editor Ativo")
+            colunas_visiveis = st.multiselect(
+                "Ajuste de Exibição (Escolha as colunas):",
+                options=todas_colunas,
+                default=colunas_cliente + ["Técnico 1", "Prazo 1"] if "Técnico 1" in todas_colunas else colunas_cliente
+            )
+        else:
+            # Para o cliente, as colunas são fixas e a caixa não aparece
+            colunas_visiveis = colunas_cliente
 
     # --- LÓGICA DE FILTRAGEM ---
     if selecao_tecnicos and col_presentes:
@@ -141,18 +147,15 @@ if not df_original.empty:
                 help="Clique para abrir o link oficial do boletim"
             )
 
-        # Exibe apenas as colunas selecionadas no multiselect da sidebar
-        if colunas_visiveis:
-            st.dataframe(
-                df[colunas_visiveis], 
-                use_container_width=True, 
-                hide_index=True,
-                column_config=config_colunas
-            )
-        else:
-            st.warning("Selecione pelo menos uma coluna no painel lateral para visualizar os detalhes.")
+        st.dataframe(
+            df[colunas_visiveis], 
+            use_container_width=True, 
+            hide_index=True,
+            column_config=config_colunas
+        )
         
     else:
         st.warning("Nenhum dado encontrado para os filtros selecionados.")
+
 
 
