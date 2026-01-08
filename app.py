@@ -35,7 +35,7 @@ URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sh
 
 # 3. TÍTULO ÚNICO NA PÁGINA
 st.title("🔬 Laboratório de Análises Físico-Químicas_CPAO")
-st.caption("Filtros independentes | Visualização otimizada")
+st.caption("Visualização de Prazos e Técnicos Integrada")
 st.markdown("---")
 
 @st.cache_data(ttl=30)
@@ -63,8 +63,8 @@ if not df_original.empty:
         st.header("⚙️ Painel de Filtros")
         
         # --- FILTRO UNIFICADO DE TÉCNICOS ---
-        col_tecnicos = ["Técnico 1", "Técnico 2", "Técnico 3", "Técnico 4", "Técnico 5", "Técnico 6"]
-        col_presentes = [c for c in col_tecnicos if c in df.columns]
+        col_tecnicos_nomes = ["Técnico 1", "Técnico 2", "Técnico 3", "Técnico 4", "Técnico 5", "Técnico 6"]
+        col_presentes = [c for c in col_tecnicos_nomes if c in df.columns]
         
         if col_presentes:
             nomes_unicos = pd.unique(df[col_presentes].values.ravel('K'))
@@ -81,33 +81,32 @@ if not df_original.empty:
                 opcoes = sorted(df[col].dropna().unique().tolist())
                 escolhas_usuario[col] = st.multiselect(f"Filtrar {col}:", options=opcoes)
 
-        # --- LÓGICA DE EXIBIÇÃO DE COLUNAS (MODO EDITOR VS CLIENTE) ---
+        # --- LÓGICA DE EXIBIÇÃO DE COLUNAS (CLIENTE E EDITOR) ---
         todas_colunas = df.columns.tolist()
         
-        # Lista de colunas que o cliente vê por padrão
+        # Lista completa que você deseja mostrar
         colunas_cliente = [
             "Status_Amostra", "Boletim", "Link do Boletim", "Data", 
             "Identificação Lab (Início)", "Identificação Lab (Final)", 
-            "Qtdade", "Matriz", "Demandante", "Projeto", "Ordem de Serviço"
+            "Qtdade", "Matriz", "Demandante", "Projeto", "Ordem de Serviço",
+            "Técnico 1", "Prazo 1", "Técnico 2", "Prazo 2", "Técnico 3", "Prazo 3", 
+            "Técnico 4", "Prazo 4", "Técnico 5", "Prazo 5", "Técnico 6", "Prazo 6"
         ]
         
-        # Filtra apenas as que existem realmente na planilha para evitar erros
+        # Garantir que só tentamos exibir colunas que existem na planilha
         colunas_cliente_existentes = [c for c in colunas_cliente if c in todas_colunas]
 
         if e_editor:
             st.markdown("---")
             st.success("🔓 Modo Editor Ativo")
-            # No modo editor, sugerimos as do cliente + técnicos como padrão inicial
-            # Mas removemos duplicatas transformando em set e voltando para list
-            sugestao_inicial = list(dict.fromkeys(colunas_cliente_existentes + col_presentes))
-            
+            # O Modo Editor sugere a lista completa como padrão e permite adicionar outras
             colunas_visiveis = st.multiselect(
                 "Ajuste de Exibição (Escolha as colunas):",
                 options=todas_colunas,
-                default=sugestao_inicial
+                default=colunas_cliente_existentes
             )
         else:
-            # Cliente vê a lista pré-definida
+            # Cliente vê a lista fixa com técnicos e prazos
             colunas_visiveis = colunas_cliente_existentes
 
     # --- LÓGICA DE FILTRAGEM ---
@@ -158,7 +157,7 @@ if not df_original.empty:
                 help="Clique para abrir o link oficial do boletim"
             )
 
-        # Exibe as colunas selecionadas
+        # Exibe as colunas selecionadas (incluindo Prazos)
         if colunas_visiveis:
             st.dataframe(
                 df[colunas_visiveis], 
@@ -167,7 +166,7 @@ if not df_original.empty:
                 column_config=config_colunas
             )
         else:
-            st.info("Selecione colunas no painel lateral para visualizar os dados.")
+            st.info("Nenhuma coluna selecionada para exibição.")
         
     else:
         st.warning("Nenhum dado encontrado para os filtros selecionados.")
