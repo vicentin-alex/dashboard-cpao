@@ -75,7 +75,7 @@ if not df_original.empty:
             selecao_tecnicos = []
 
         # --- OUTROS FILTROS ---
-        colunas_filtros_extras = ["Preparo", "Status_Amostra", "Matriz", "Demandante", "Projeto", "Boletim"]
+        colunas_filtros_extras = ["Status_Amostra", "Matriz", "Demandante", "Projeto", "Boletim"]
         escolhas_usuario = {}
         for col in colunas_filtros_extras:
             if col in df.columns:
@@ -156,6 +156,7 @@ if not df_original.empty:
         
     else:
         st.warning("Nenhum dado encontrado para os filtros selecionados.")
+
 
 
 
