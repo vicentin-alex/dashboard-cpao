@@ -27,21 +27,18 @@ with st.sidebar:
 SHEET_ID = "1PchyFqFOQ8A80xiBAkUZbqfyKbTzrQZwBuhJllMCVSk"
 SHEET_NAME = "REGISTRO"
 encoded_sheet_name = urllib.parse.quote(SHEET_NAME)
-# A URL foi simplificada para garantir a captura de todas as colunas
 URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet={encoded_sheet_name}"
 
 # 3. TÍTULO ÚNICO NA PÁGINA
 st.title("🔬 Laboratório de Análises Físico-Químicas_CPAO")
-st.caption("Visualização Completa de Colunas - Filtros Independentes")
+st.caption("Filtros independentes | Links clicáveis habilitados")
 st.markdown("---")
 
 @st.cache_data(ttl=30)
 def load_data():
     try:
-        # Carregamento bruto sem remoção de colunas vazias
+        # Carregamento completo sem remover colunas vazias
         df = pd.read_csv(URL, encoding='utf-8')
-        
-        # Tratamento básico de data apenas se a coluna existir
         if 'Data' in df.columns:
             df['Data'] = pd.to_datetime(df['Data'], errors='coerce')
         return df
@@ -58,17 +55,13 @@ if not df_original.empty:
         st.header("Painel de Filtros")
         
         # --- FILTRO UNIFICADO DE TÉCNICOS ---
-        # Definimos os nomes das colunas de técnicos conforme a sua planilha
         col_tecnicos = ["Técnico 1", "Técnico 2", "Técnico 3", "Técnico 4", "Técnico 5", "Técnico 6"]
-        
-        # Filtramos apenas as que realmente foram lidas pelo pandas
         col_presentes = [c for c in col_tecnicos if c in df.columns]
         
         if col_presentes:
-            # Captura todos os nomes únicos ignorando os vazios (NaN)
             nomes_unicos = pd.unique(df[col_presentes].values.ravel('K'))
             opcoes_tecnicos = sorted([str(x) for x in nomes_unicos if pd.notna(x) and str(x).strip() != ''])
-            selecao_tecnicos = st.multiselect("Filtrar por Técnico (1 a 6):", options=opcoes_tecnicos)
+            selecao_tecnicos = st.multiselect("Filtrar por Técnico:", options=opcoes_tecnicos)
         else:
             selecao_tecnicos = []
 
@@ -82,11 +75,9 @@ if not df_original.empty:
                 escolhas_usuario[col] = st.multiselect(f"Filtrar {col}:", options=opcoes)
 
     # --- LÓGICA DE FILTRAGEM ---
-    # Filtro de Técnicos (Busca em todas as colunas de técnico simultaneamente)
     if selecao_tecnicos and col_presentes:
         df = df[df[col_presentes].isin(selecao_tecnicos).any(axis=1)]
 
-    # Filtros Adicionais
     for col, selecao in escolhas_usuario.items():
         if selecao:
             df = df[df[col].isin(selecao)]
@@ -95,7 +86,6 @@ if not df_original.empty:
     st.markdown("---")
     m0, m1, m2, m3, m4 = st.columns(5)
     
-    # Soma da Quantidade (Ajuste o nome 'Qtdade' se estiver diferente na planilha)
     if "Qtdade" in df.columns:
         total = int(df['Qtdade'].sum())
         m0.metric("QUANTIDADE TOTAL", f"{total:,}".replace(',', '.'))
@@ -120,17 +110,27 @@ if not df_original.empty:
                 fig2 = px.bar(df, x="Demandante", y="Qtdade", color="Matriz" if "Matriz" in df.columns else None, title="Volume por Demandante", color_discrete_sequence=CORES_LAB)
                 st.plotly_chart(fig2, use_container_width=True)
 
-        # --- TABELA DE DETALHAMENTO COMPLETA ---
+        # --- TABELA DE DETALHAMENTO COM LINKS CLICÁVEIS ---
         st.subheader("📋 Detalhamento das Amostras")
-        st.markdown("A tabela abaixo exibe todas as colunas identificadas na planilha.")
         
-        # Exibe o dataframe filtrado com TODAS as colunas originais
-        st.dataframe(df, use_container_width=True, hide_index=True)
+        # Criamos a configuração de colunas para tornar o link clicável
+        # O display_text faz com que apareça um ícone e texto em vez do link gigante
+        config_colunas = {}
+        if "Link do Boletim" in df.columns:
+            config_colunas["Link do Boletim"] = st.column_config.LinkColumn(
+                "Link do Boletim",
+                display_text="Abrir Boletim 📄",
+                help="Clique para abrir o link oficial do boletim"
+            )
+
+        # Exibe o dataframe com a configuração de link
+        st.dataframe(
+            df, 
+            use_container_width=True, 
+            hide_index=True,
+            column_config=config_colunas
+        )
         
     else:
         st.warning("Nenhum dado encontrado para os filtros selecionados.")
-
-
-
-
 
