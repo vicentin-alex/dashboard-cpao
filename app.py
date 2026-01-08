@@ -24,7 +24,6 @@ with st.sidebar:
     st.markdown("---")
     
     # --- ACESSO RESTRITO AO EDITOR ---
-    # Altere 'admin123' para a senha de sua preferência
     senha_acesso = st.text_input("Acesso Interno", type="password", help="Digite a senha para habilitar ajustes de exibição.")
     e_editor = (senha_acesso == "Acetona25@!")
 
@@ -84,20 +83,32 @@ if not df_original.empty:
 
         # --- LÓGICA DE EXIBIÇÃO DE COLUNAS (MODO EDITOR VS CLIENTE) ---
         todas_colunas = df.columns.tolist()
-        colunas_cliente = ["Status_Amostra", "Boletim", "Link do Boletim", "Data", "Identificação Lab (Início)", "Identificação Lab (Final)", "Qtdade", "Matriz", "Demandante", "Projeto","Ordem de Serviço", "Técnico 1", "Prazo 1", "Técnico 2", "Prazo 2", "Técnico 3", "Prazo 3", "Técnico 4", "Prazo 4", "Técnico 5", "Prazo 5", "Técnico 6", "Prazo 6"]
-        colunas_cliente = [c for c in colunas_cliente if c in todas_colunas]
+        
+        # Lista de colunas que o cliente vê por padrão
+        colunas_cliente = [
+            "Status_Amostra", "Boletim", "Link do Boletim", "Data", 
+            "Identificação Lab (Início)", "Identificação Lab (Final)", 
+            "Qtdade", "Matriz", "Demandante", "Projeto", "Ordem de Serviço"
+        ]
+        
+        # Filtra apenas as que existem realmente na planilha para evitar erros
+        colunas_cliente_existentes = [c for c in colunas_cliente if c in todas_colunas]
 
         if e_editor:
             st.markdown("---")
             st.success("🔓 Modo Editor Ativo")
+            # No modo editor, sugerimos as do cliente + técnicos como padrão inicial
+            # Mas removemos duplicatas transformando em set e voltando para list
+            sugestao_inicial = list(dict.fromkeys(colunas_cliente_existentes + col_presentes))
+            
             colunas_visiveis = st.multiselect(
                 "Ajuste de Exibição (Escolha as colunas):",
                 options=todas_colunas,
-                default=colunas_cliente + ["Técnico 1", "Prazo 1"] if "Técnico 1" in todas_colunas else colunas_cliente
+                default=sugestao_inicial
             )
         else:
-            # Para o cliente, as colunas são fixas e a caixa não aparece
-            colunas_visiveis = colunas_cliente
+            # Cliente vê a lista pré-definida
+            colunas_visiveis = colunas_cliente_existentes
 
     # --- LÓGICA DE FILTRAGEM ---
     if selecao_tecnicos and col_presentes:
@@ -147,12 +158,16 @@ if not df_original.empty:
                 help="Clique para abrir o link oficial do boletim"
             )
 
-        st.dataframe(
-            df[colunas_visiveis], 
-            use_container_width=True, 
-            hide_index=True,
-            column_config=config_colunas
-        )
+        # Exibe as colunas selecionadas
+        if colunas_visiveis:
+            st.dataframe(
+                df[colunas_visiveis], 
+                use_container_width=True, 
+                hide_index=True,
+                column_config=config_colunas
+            )
+        else:
+            st.info("Selecione colunas no painel lateral para visualizar os dados.")
         
     else:
         st.warning("Nenhum dado encontrado para os filtros selecionados.")
