@@ -11,7 +11,6 @@ st.set_page_config(
 )
 
 # --- PALETA DE CORES PERSONALIZADA ---
-# Ordem: Azul Forte, Verde Saúde, Amarelo Alerta, Azul Claro, Cinza
 CORES_LAB = ['#004a88', '#28a745', '#ffc107', '#007bff', '#6c757d']
 
 # --- ADICIONAR LOGO NA BARRA LATERAL ---
@@ -54,10 +53,23 @@ if not df_original.empty:
 
     with st.sidebar:
         st.header("Painel de Filtros")
-        colunas_para_filtrar = [
-            "Status_Amostra", "Matriz", "Demandante",
-            "Projeto", "Boletim", "Técnico Responsável"
-        ]
+        
+        # --- FILTRO UNIFICADO DE TÉCNICOS (1 ao 6) ---
+        # Definimos as colunas exatas que existem na sua planilha
+        colunas_tecnicos = ["Técnico 1", "Técnico 2", "Técnico 3", "Técnico 4", "Técnico 5", "Técnico 6"]
+        
+        # Extraímos todos os nomes únicos que aparecem nessas 6 colunas
+        existentes = [col for col in colunas_tecnicos if col in df.columns]
+        if existentes:
+            lista_todos_tecnicos = pd.unique(df[existentes].values.ravel('K'))
+            lista_todos_tecnicos = sorted([x for x in lista_todos_tecnicos if str(x) != 'nan' and str(x) != 'None'])
+            
+            selecao_tecnicos = st.multiselect("Filtrar por Técnico (1 a 6):", options=lista_todos_tecnicos)
+        else:
+            selecao_tecnicos = []
+
+        # --- DEMAIS FILTROS ---
+        colunas_para_filtrar = ["Status_Amostra", "Matriz", "Demandante", "Projeto", "Boletim"]
         
         escolhas_usuario = {}
         for col in colunas_para_filtrar:
@@ -66,46 +78,40 @@ if not df_original.empty:
                 selecao = st.multiselect(f"Filtrar {col}:", options=opcoes)
                 escolhas_usuario[col] = selecao
 
+    # --- APLICAÇÃO DA LÓGICA DE FILTRAGEM ---
+    
+    # Filtro de Técnicos: Se o nome estiver em QUALQUER uma das colunas de técnico
+    if selecao_tecnicos and existentes:
+        mascara_tecnico = df[existentes].isin(selecao_tecnicos).any(axis=1)
+        df = df[mascara_tecnico]
+
+    # Outros Filtros
     for col, selecao in escolhas_usuario.items():
         if selecao:
             df = df[df[col].isin(selecao)]
 
-   # --- MÉTRICAS PERSONALIZADAS COM TOTAL DE QTDADE ---
+    # --- MÉTRICAS PERSONALIZADAS ---
     st.markdown("---")
-    # Criando 5 colunas para acomodar todas as métricas no topo
     m0, m1, m2, m3, m4 = st.columns(5)
     
-    # 0. Quantidade Total (Soma da coluna Qtdade)
     if "Qtdade" in df.columns:
         total_volume = int(df['Qtdade'].sum())
         m0.metric("QUANTIDADE REGISTRADA", f"{total_volume:,}".replace(',', '.'))
 
     if "Status_Amostra" in df.columns:
-        # 1. Amostras Prontas
-        prontas = len(df[df["Status_Amostra"] == "PRONTAS"])
-        m1.metric("BOLETIM PRONTO", prontas)
-        
-        # 2. Amostras em Análise
-        em_analise = len(df[df["Status_Amostra"] == "EM ANÁLISE"])
-        m2.metric("BOLETIM EM ANÁLISE", em_analise)
-        
-        # 3. Amostras na Fila
-        na_fila = len(df[df["Status_Amostra"] == "NA FILA"])
-        m3.metric("BOLETIM NA FILA", na_fila)
-        
-        # 4. Amostras Não Entregues
-        nao_entregue = len(df[df["Status_Amostra"] == "NÃO ENTREGUE"])
-        m4.metric("BOLETIM REGISTRADO VIRTUALMENTE", nao_entregue)
+        m1.metric("BOLETIM PRONTO", len(df[df["Status_Amostra"] == "PRONTAS"]))
+        m2.metric("BOLETIM EM ANÁLISE", len(df[df["Status_Amostra"] == "EM ANÁLISE"]))
+        m3.metric("BOLETIM NA FILA", len(df[df["Status_Amostra"] == "NA FILA"]))
+        m4.metric("REGISTRADO VIRTUALMENTE", len(df[df["Status_Amostra"] == "NÃO ENTREGUE"]))
 
     st.markdown("---")
 
-    # --- GRÁFICOS COM CORES PERSONALIZADAS ---
+    # --- GRÁFICOS ---
     if not df.empty:
         c1, c2 = st.columns(2)
         
         with c1:
             if "Status_Amostra" in df.columns:
-                # Adicionado color_discrete_sequence
                 fig1 = px.pie(
                     df, 
                     names="Status_Amostra", 
@@ -116,14 +122,13 @@ if not df_original.empty:
                 st.plotly_chart(fig1, use_container_width=True)
         
         with c2:
-            if "Demandante" in df.columns:
-                # Adicionado color_discrete_sequence
+            if "Demandante" in df.columns and "Qtdade" in df.columns:
                 fig2 = px.bar(
                     df, 
                     x="Demandante", 
                     y="Qtdade", 
-                    color="Matriz", 
-                    title="Volume por Demandante e Matriz",
+                    color="Matriz" if "Matriz" in df.columns else None, 
+                    title="Volume por Demandante",
                     color_discrete_sequence=CORES_LAB
                 )
                 st.plotly_chart(fig2, use_container_width=True)
@@ -131,9 +136,7 @@ if not df_original.empty:
         st.subheader("📋 Detalhamento das Amostras")
         st.dataframe(df, use_container_width=True, hide_index=True)
     else:
-        st.warning("Nenhum dado encontrado para a combinação de filtros selecionada.")
-
-
+        st.warning("Nenhum dado encontrado para os filtros selecionados.")
 
 
 
