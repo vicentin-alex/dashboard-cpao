@@ -116,23 +116,22 @@ if not df_original.empty:
             df = df[df[col].isin(selecao)]
 
     # --- MÉTRICAS ---
+    st.markdown("---")
     m0, m1, m2, m3, m4 = st.columns(5)
+    
     if "Qtdade" in df.columns:
         total = int(df['Qtdade'].sum())
         m0.metric("QUANTIDADE TOTAL", f"{total:,}".replace(',', '.'))
 
+    # O erro estava aqui: as linhas abaixo devem estar recuadas (identadas)
     if "Status_Amostra" in df.columns:
-    # Criamos uma versão em maiúsculas para a comparação não falhar por causa de acentos ou caixa alta/baixa
-    status_upper = df["Status_Amostra"].fillna("").str.upper()
-
-    # m1.metric("NOME NO DASHBOARD", contagem onde na planilha está "VALOR EXATO")
-    m1.metric("BOLETIM PRONTO", len(df[status_upper == "PRONTAS"]))
-    
-    m2.metric("BOLETIM EM ANÁLISE", len(df[status_upper == "EM ANÁLISE"]))
-    
-    m3.metric("BOLETIM NA FILA", len(df[status_upper == "NA FILA"]))
-    
-    m4.metric("REGISTRO VIRTUAL", len(df[status_upper == "NÃO ENTREGUE"]))
+        # Tudo que pertence ao IF deve estar com este recuo:
+        status_upper = df["Status_Amostra"].fillna("").str.upper()
+        
+        m1.metric("BOLETIM PRONTO", len(df[status_upper == "PRONTAS"]))
+        m2.metric("BOLETIM EM ANÁLISE", len(df[status_upper == "EM ANÁLISE"]))
+        m3.metric("BOLETIM NA FILA", len(df[status_upper == "NA FILA"]))
+        m4.metric("REGISTRO VIRTUAL", len(df[status_upper == "NÃO ENTREGUE"]))
 
     st.markdown("---")
 
@@ -204,5 +203,6 @@ if not df_original.empty:
     
 else:
     st.warning("Nenhum dado encontrado. Verifique a conexão com a planilha ou os filtros.")
+
 
 
