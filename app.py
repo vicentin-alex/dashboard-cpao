@@ -126,10 +126,10 @@ if not df_original.empty:
 
     if "Status_Amostra" in df.columns:
         status_valido = df[df["Status_Amostra"].notna()]
-        m1.metric("PRONTAS", len(status_valido[status_valido["Status_Amostra"] == "PRONTAS"]))
-        m2.metric("EM ANÁLISE", len(status_valido[status_valido["Status_Amostra"] == "EM ANÁLISE"]))
-        m3.metric("NA FILA", len(status_valido[status_valido["Status_Amostra"] == "NA FILA"]))
-        m4.metric("NÃO ENTREGUE", len(status_valido[status_valido["Status_Amostra"] == "NÃO ENTREGUE"]))
+        m1.metric("PRONTAS", len(status_valido[status_valido["Status_Amostra"] == "BOLETIM PRONTO"]))
+        m2.metric("EM ANÁLISE", len(status_valido[status_valido["Status_Amostra"] == "BOLETIM EM ANÁLISE"]))
+        m3.metric("NA FILA", len(status_valido[status_valido["Status_Amostra"] == "BOLETIM NA FILA"]))
+        m4.metric("NÃO ENTREGUE", len(status_valido[status_valido["Status_Amostra"] == "REGISTRO VIRTUAL"]))
 
     st.markdown("---")
 
@@ -170,6 +170,7 @@ if not df_original.empty:
         
     else:
         st.warning("Nenhum dado encontrado para os filtros selecionados.")
+
 
 
 
