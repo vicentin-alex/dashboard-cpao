@@ -129,36 +129,43 @@ if not df_original.empty:
 
     st.markdown("---")
 
-    # --- GRÁFICO DE LINHA DO TEMPO (GANTT - CORRIGIDO) ---
+   # --- GRÁFICO DE LINHA DO TEMPO (GANTT - VERSÃO COM LIMPEZA REFORÇADA) ---
     st.subheader("⏳ Cronograma de Análises e Prazos")
     prazos_lista = ["Prazo 1", "Prazo 2", "Prazo 3", "Prazo 4", "Prazo 5", "Prazo 6"]
     prazos_atuais = [c for c in prazos_lista if c in df.columns]
 
     if not df.empty and "Data" in df.columns and prazos_atuais:
+        # 1. Criamos a cópia e garantimos que tudo que for vazio vire NaN (nulo oficial)
         df_gantt = df.copy()
-        # Garante que as datas são datetime para evitar TypeError
-        df_gantt['Data'] = pd.to_datetime(df_gantt['Data'], errors='coerce')
+        
+        # 2. Forçamos a conversão e removemos fusos horários (tz-naive) para evitar conflitos
+        df_gantt['Data'] = pd.to_datetime(df_gantt['Data'], dayfirst=True, errors='coerce').dt.tz_localize(None)
+        
         for c in prazos_atuais:
-            df_gantt[c] = pd.to_datetime(df_gantt[c], errors='coerce')
+            df_gantt[c] = pd.to_datetime(df_gantt[c], dayfirst=True, errors='coerce').dt.tz_localize(None)
 
-        # Define o Prazo Final Máximo da linha
+        # 3. Calculamos o Prazo Final ignorando os erros (NaNs)
         df_gantt['Prazo_Final'] = df_gantt[prazos_atuais].max(axis=1)
         
-        # Limpa dados inválidos para o gráfico
+        # 4. FILTRO CRÍTICO: Removemos qualquer linha onde a data de início ou fim seja nula
+        # Isso impede o erro de "TypeError" ou datas inválidas no Plotly
         df_gantt = df_gantt.dropna(subset=['Data', 'Prazo_Final'])
-        df_gantt['Boletim'] = df_gantt['Boletim'].astype(str)
+        
+        # 5. Filtro adicional: Data de Início deve ser menor ou igual à Data de Fim
+        df_gantt = df_gantt[df_gantt['Prazo_Final'] >= df_gantt['Data']]
 
         if not df_gantt.empty:
             hoje = pd.Timestamp.now().normalize()
             
             def check_timeline_status(row):
-                status_raw = str(row['Status_Amostra']).upper()
-                if "PRONTAS" in status_raw: return "Concluído"
+                st_raw = str(row['Status_Amostra']).upper()
+                if "PRONTAS" in st_raw: return "Concluído"
                 if row['Prazo_Final'] < hoje: return "Atrasado 🚨"
-                if "EM ANÁLISE" in status_raw: return "Em Análise 🔬"
+                if "EM ANÁLISE" in st_raw: return "Em Análise 🔬"
                 return "Na Fila 📥"
 
             df_gantt['Status_Timeline'] = df_gantt.apply(check_timeline_status, axis=1)
+            df_gantt['Boletim'] = df_gantt['Boletim'].astype(str)
 
             try:
                 fig_gantt = px.timeline(
@@ -180,10 +187,9 @@ if not df_original.empty:
                 fig_gantt.update_layout(xaxis_title="Duração Estimada", yaxis_title="Nº Boletim")
                 st.plotly_chart(fig_gantt, use_container_width=True)
             except Exception as e:
-                st.error("Erro ao gerar gráfico de Gantt. Verifique o formato das datas na planilha.")
-
-    st.markdown("---")
-
+                st.warning(f"Atenção: Há inconsistência em algumas datas da planilha. Verifique se existem anos incorretos (ex: ano 0024 ou 202). Erro técnico: {e}")
+        else:
+            st.info("Nenhuma OS com datas de Início e Prazo preenchidas corretamente para gerar o gráfico.")
     # --- GRÁFICOS COMPLEMENTARES ---
     c1, c2 = st.columns(2)
     with c1:
@@ -213,4 +219,5 @@ if not df_original.empty:
     
 else:
     st.warning("Conexão com a planilha falhou ou não há dados com os filtros selecionados.")
+
 
