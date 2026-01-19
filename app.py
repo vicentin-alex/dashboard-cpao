@@ -43,19 +43,17 @@ st.markdown("---")
 def load_data():
     try:
         df = pd.read_csv(URL, encoding='utf-8')
-        # Limpeza básica: remove linhas totalmente vazias nas colunas principais
         if "Boletim" in df.columns:
             df = df.dropna(subset=["Boletim"], how='all')
         
-        # Conversão de Datas
+        # Conversão inicial de Datas (Garantindo formato BR)
         if 'Data' in df.columns:
-            df['Data'] = pd.to_datetime(df['Data'], errors='coerce', dayfirst=True)
+            df['Data'] = pd.to_datetime(df['Data'], dayfirst=True, errors='coerce')
         
-        # Colunas de Prazo (converter para data)
-        colunas_prazos = ["Prazo 1", "Prazo 2", "Prazo 3", "Prazo 4", "Prazo 5", "Prazo 6"]
-        for col in colunas_prazos:
-            if col in df.columns:
-                df[col] = pd.to_datetime(df[col], errors='coerce', dayfirst=True)
+        col_prazos = ["Prazo 1", "Prazo 2", "Prazo 3", "Prazo 4", "Prazo 5", "Prazo 6"]
+        for c in col_prazos:
+            if c in df.columns:
+                df[c] = pd.to_datetime(df[c], dayfirst=True, errors='coerce')
                 
         return df
     except Exception as e:
@@ -70,7 +68,6 @@ if not df_original.empty:
     with st.sidebar:
         st.header("⚙️ Painel de Filtros")
         
-        # --- FILTRO UNIFICADO DE TÉCNICOS ---
         col_tecnicos_nomes = ["Técnico 1", "Técnico 2", "Técnico 3", "Técnico 4", "Técnico 5", "Técnico 6"]
         col_presentes = [c for c in col_tecnicos_nomes if c in df.columns]
         
@@ -81,15 +78,13 @@ if not df_original.empty:
         else:
             selecao_tecnicos = []
 
-        # --- OUTROS FILTROS ---
-        colunas_filtros_extras = ["Status_Amostra", "Matriz", "Demandante", "Projeto", "Boletim"]
+        col_filtros_extras = ["Status_Amostra", "Matriz", "Demandante", "Projeto", "Boletim"]
         escolhas_usuario = {}
-        for col in colunas_filtros_extras:
+        for col in col_filtros_extras:
             if col in df.columns:
                 opcoes = sorted(df[col].dropna().unique().tolist())
                 escolhas_usuario[col] = st.multiselect(f"Filtrar {col}:", options=opcoes)
 
-        # --- LÓGICA DE EXIBIÇÃO DE COLUNAS ---
         todas_colunas = df.columns.tolist()
         colunas_cliente = [
             "Status_Amostra", "Boletim", "Link do Boletim", "Data", 
@@ -98,14 +93,14 @@ if not df_original.empty:
             "Técnico 1", "Prazo 1", "Técnico 2", "Prazo 2", "Técnico 3", "Prazo 3", 
             "Técnico 4", "Prazo 4", "Técnico 5", "Prazo 5", "Técnico 6", "Prazo 6"
         ]
-        colunas_cliente_existentes = [c for c in colunas_cliente if c in todas_colunas]
+        col_existentes = [c for c in colunas_cliente if c in todas_colunas]
 
         if e_editor:
             st.markdown("---")
             st.success("🔓 Modo Editor Ativo")
-            colunas_visiveis = st.multiselect("Escolha as colunas:", options=todas_colunas, default=colunas_cliente_existentes)
+            colunas_visiveis = st.multiselect("Escolha as colunas:", options=todas_colunas, default=col_existentes)
         else:
-            colunas_visiveis = colunas_cliente_existentes
+            colunas_visiveis = col_existentes
 
     # --- APLICAÇÃO DOS FILTROS ---
     if selecao_tecnicos and col_presentes:
@@ -115,94 +110,107 @@ if not df_original.empty:
         if selecao:
             df = df[df[col].isin(selecao)]
 
-    # --- MÉTRICAS ---
+    # --- MÉTRICAS (CORRIGIDO) ---
     st.markdown("---")
     m0, m1, m2, m3, m4 = st.columns(5)
     
     if "Qtdade" in df.columns:
-        total = int(df['Qtdade'].sum())
-        m0.metric("QUANTIDADE TOTAL", f"{total:,}".replace(',', '.'))
+        total_amostras = int(df['Qtdade'].sum())
+        m0.metric("QUANTIDADE TOTAL", f"{total_amostras:,}".replace(',', '.'))
 
-    # O erro estava aqui: as linhas abaixo devem estar recuadas (identadas)
     if "Status_Amostra" in df.columns:
-        # Tudo que pertence ao IF deve estar com este recuo:
-        status_upper = df["Status_Amostra"].fillna("").str.upper()
+        # Padroniza para maiúsculas para evitar erros de digitação na planilha
+        st_upper = df["Status_Amostra"].fillna("").str.upper()
         
-        m1.metric("BOLETIM PRONTO", len(df[status_upper == "PRONTAS"]))
-        m2.metric("BOLETIM EM ANÁLISE", len(df[status_upper == "EM ANÁLISE"]))
-        m3.metric("BOLETIM NA FILA", len(df[status_upper == "NA FILA"]))
-        m4.metric("REGISTRO VIRTUAL", len(df[status_upper == "NÃO ENTREGUE"]))
+        m1.metric("BOLETIM PRONTO", len(df[st_upper == "PRONTAS"]))
+        m2.metric("BOLETIM EM ANÁLISE", len(df[st_upper == "EM ANÁLISE"]))
+        m3.metric("BOLETIM NA FILA", len(df[st_upper == "NA FILA"]))
+        m4.metric("REGISTRO VIRTUAL", len(df[st_upper == "NÃO ENTREGUE"]))
 
     st.markdown("---")
 
-    # --- NOVO: GRÁFICO DE LINHA DO TEMPO (GANTT) ---
+    # --- GRÁFICO DE LINHA DO TEMPO (GANTT - CORRIGIDO) ---
     st.subheader("⏳ Cronograma de Análises e Prazos")
-    prazos_cols = ["Prazo 1", "Prazo 2", "Prazo 3", "Prazo 4", "Prazo 5", "Prazo 6"]
-    prazos_reais = [c for c in prazos_cols if c in df.columns]
+    prazos_lista = ["Prazo 1", "Prazo 2", "Prazo 3", "Prazo 4", "Prazo 5", "Prazo 6"]
+    prazos_atuais = [c for c in prazos_lista if c in df.columns]
 
-    if not df.empty and "Data" in df.columns and prazos_reais:
+    if not df.empty and "Data" in df.columns and prazos_atuais:
         df_gantt = df.copy()
-        # Define o prazo final como a maior data entre todos os técnicos daquela linha
-        df_gantt['Prazo_Final'] = df_gantt[prazos_reais].max(axis=1)
-        df_gantt = df_gantt.dropna(subset=['Data', 'Prazo_Final'])
+        # Garante que as datas são datetime para evitar TypeError
+        df_gantt['Data'] = pd.to_datetime(df_gantt['Data'], errors='coerce')
+        for c in prazos_atuais:
+            df_gantt[c] = pd.to_datetime(df_gantt[c], errors='coerce')
+
+        # Define o Prazo Final Máximo da linha
+        df_gantt['Prazo_Final'] = df_gantt[prazos_atuais].max(axis=1)
         
+        # Limpa dados inválidos para o gráfico
+        df_gantt = df_gantt.dropna(subset=['Data', 'Prazo_Final'])
+        df_gantt['Boletim'] = df_gantt['Boletim'].astype(str)
+
         if not df_gantt.empty:
             hoje = pd.Timestamp.now().normalize()
             
-            def check_status(row):
-                if row['Status_Amostra'] == "BOLETIM PRONTO": return "Concluído"
+            def check_timeline_status(row):
+                status_raw = str(row['Status_Amostra']).upper()
+                if "PRONTAS" in status_raw: return "Concluído"
                 if row['Prazo_Final'] < hoje: return "Atrasado 🚨"
-                if row['Status_Amostra'] == "BOLETIM EM ANÁLISE": return "Em Análise 🔬"
+                if "EM ANÁLISE" in status_raw: return "Em Análise 🔬"
                 return "Na Fila 📥"
 
-            df_gantt['Status_Timeline'] = df_gantt.apply(check_status, axis=1)
+            df_gantt['Status_Timeline'] = df_gantt.apply(check_timeline_status, axis=1)
 
-            fig_gantt = px.timeline(
-                df_gantt, 
-                start="Data", 
-                end="Prazo_Final", 
-                y="Boletim", 
-                color="Status_Timeline",
-                color_discrete_map={
-                    "Concluído": "#28a745",
-                    "Em Análise 🔬": "#ffc107",
-                    "Na Fila 📥": "#004a88",
-                    "Atrasado 🚨": "#d93025"
-                },
-                hover_data=["Status_Amostra", "Matriz", "Demandante"],
-                category_orders={"Boletim": df_gantt.sort_values(by="Data")["Boletim"].tolist()}
-            )
-            fig_gantt.update_yaxes(autorange="reversed")
-            fig_gantt.update_layout(xaxis_title="Período", yaxis_title="Boletim")
-            st.plotly_chart(fig_gantt, use_container_width=True)
+            try:
+                fig_gantt = px.timeline(
+                    df_gantt, 
+                    start="Data", 
+                    end="Prazo_Final", 
+                    y="Boletim", 
+                    color="Status_Timeline",
+                    color_discrete_map={
+                        "Concluído": "#28a745",
+                        "Em Análise 🔬": "#ffc107",
+                        "Na Fila 📥": "#004a88",
+                        "Atrasado 🚨": "#d93025"
+                    },
+                    hover_data=["Status_Amostra", "Matriz", "Demandante"],
+                    category_orders={"Boletim": df_gantt.sort_values(by="Data")["Boletim"].unique().tolist()}
+                )
+                fig_gantt.update_yaxes(autorange="reversed")
+                fig_gantt.update_layout(xaxis_title="Duração Estimada", yaxis_title="Nº Boletim")
+                st.plotly_chart(fig_gantt, use_container_width=True)
+            except Exception as e:
+                st.error("Erro ao gerar gráfico de Gantt. Verifique o formato das datas na planilha.")
 
     st.markdown("---")
 
-    # --- GRÁFICOS DE PIZZA E BARRA ---
+    # --- GRÁFICOS COMPLEMENTARES ---
     c1, c2 = st.columns(2)
     with c1:
         if "Status_Amostra" in df.columns:
-            fig1 = px.pie(df.dropna(subset=["Status_Amostra"]), names="Status_Amostra", title="Distribuição por Status", hole=0.4, color_discrete_sequence=CORES_LAB)
-            st.plotly_chart(fig1, use_container_width=True)
+            fig_pizza = px.pie(df.dropna(subset=["Status_Amostra"]), names="Status_Amostra", title="Distribuição por Status", hole=0.4, color_discrete_sequence=CORES_LAB)
+            st.plotly_chart(fig_pizza, use_container_width=True)
     with c2:
         if "Demandante" in df.columns and "Qtdade" in df.columns:
-            fig2 = px.bar(df, x="Demandante", y="Qtdade", color="Matriz" if "Matriz" in df.columns else None, title="Volume por Demandante", color_discrete_sequence=CORES_LAB)
-            st.plotly_chart(fig2, use_container_width=True)
+            fig_barra = px.bar(df, x="Demandante", y="Qtdade", color="Matriz" if "Matriz" in df.columns else None, title="Volume por Demandante", color_discrete_sequence=CORES_LAB)
+            st.plotly_chart(fig_barra, use_container_width=True)
 
     # --- TABELA DE DETALHAMENTO ---
     st.subheader("📋 Detalhamento das Amostras")
-    config_colunas = {
+    conf_col = {
         "Link do Boletim": st.column_config.LinkColumn("Boletim", display_text="Abrir 📄"),
         "Data": st.column_config.DateColumn("Registro", format="DD/MM/YYYY"),
         "Prazo 1": st.column_config.DateColumn("Prazo 1", format="DD/MM/YYYY"),
-        "Prazo 2": st.column_config.DateColumn("Prazo 2", format="DD/MM/YYYY")
+        "Prazo 2": st.column_config.DateColumn("Prazo 2", format="DD/MM/YYYY"),
+        "Prazo 3": st.column_config.DateColumn("Prazo 3", format="DD/MM/YYYY"),
+        "Prazo 4": st.column_config.DateColumn("Prazo 4", format="DD/MM/YYYY"),
+        "Prazo 5": st.column_config.DateColumn("Prazo 5", format="DD/MM/YYYY"),
+        "Prazo 6": st.column_config.DateColumn("Prazo 6", format="DD/MM/YYYY")
     }
 
     if colunas_visiveis:
-        st.dataframe(df[colunas_visiveis], use_container_width=True, hide_index=True, column_config=config_colunas)
+        st.dataframe(df[colunas_visiveis], use_container_width=True, hide_index=True, column_config=conf_col)
     
 else:
-    st.warning("Nenhum dado encontrado. Verifique a conexão com a planilha ou os filtros.")
-
-
+    st.warning("Conexão com a planilha falhou ou não há dados com os filtros selecionados.")
 
