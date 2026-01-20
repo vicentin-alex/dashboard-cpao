@@ -46,14 +46,14 @@ def load_data():
         if "Boletim" in df.columns:
             df = df.dropna(subset=["Boletim"], how='all')
         
-        # Conversão inicial de Datas (Garantindo formato BR)
+        # Conversão inicial de Datas (Garantindo formato BR e removendo fuso horário)
         if 'Data' in df.columns:
-            df['Data'] = pd.to_datetime(df['Data'], dayfirst=True, errors='coerce')
+            df['Data'] = pd.to_datetime(df['Data'], dayfirst=True, errors='coerce').dt.tz_localize(None)
         
         col_prazos = ["Prazo 1", "Prazo 2", "Prazo 3", "Prazo 4", "Prazo 5", "Prazo 6"]
         for c in col_prazos:
             if c in df.columns:
-                df[c] = pd.to_datetime(df[c], dayfirst=True, errors='coerce')
+                df[c] = pd.to_datetime(df[c], dayfirst=True, errors='coerce').dt.tz_localize(None)
                 
         return df
     except Exception as e:
@@ -110,8 +110,22 @@ if not df_original.empty:
         if selecao:
             df = df[df[col].isin(selecao)]
 
-    # --- MÉTRICAS (CORRIGIDO) ---
-    st.markdown("---")
+    # --- SISTEMA DE ALERTA DE ATRASO ---
+    hoje = pd.Timestamp.now().normalize()
+    prazos_lista = ["Prazo 1", "Prazo 2", "Prazo 3", "Prazo 4", "Prazo 5", "Prazo 6"]
+    col_prazos_existentes = [c for c in prazos_lista if c in df.columns]
+    
+    if col_prazos_existentes:
+        df_alerta = df.copy()
+        df_alerta['Prazo_Max'] = df_alerta[col_prazos_existentes].max(axis=1)
+        st_upper_alerta = df_alerta["Status_Amostra"].fillna("").str.upper()
+        # Filtra quem já venceu o prazo e NÃO está pronto
+        atrasados = df_alerta[(df_alerta['Prazo_Max'] < hoje) & (st_upper_alerta != "PRONTAS")]
+        
+        if not atrasados.empty:
+            st.error(f"⚠️ **ATENÇÃO:** Existem {len(atrasados)} boletim(ns) com prazo expirado! Verifique o cronograma abaixo.")
+
+    # --- MÉTRICAS ---
     m0, m1, m2, m3, m4 = st.columns(5)
     
     if "Qtdade" in df.columns:
@@ -119,44 +133,29 @@ if not df_original.empty:
         m0.metric("QUANTIDADE TOTAL", f"{total_amostras:,}".replace(',', '.'))
 
     if "Status_Amostra" in df.columns:
-        # Padroniza para maiúsculas para evitar erros de digitação na planilha
         st_upper = df["Status_Amostra"].fillna("").str.upper()
-        
         m1.metric("BOLETIM PRONTO", len(df[st_upper == "PRONTAS"]))
-        m2.metric("BOLETIM EM ANÁLISE", len(df[st_upper == "EM ANÁLISE"]))
-        m3.metric("BOLETIM NA FILA", len(df[st_upper == "NA FILA"]))
+        m2.metric("EM ANÁLISE", len(df[st_upper == "EM ANÁLISE"]))
+        m3.metric("NA FILA", len(df[st_upper == "NA FILA"]))
         m4.metric("REGISTRO VIRTUAL", len(df[st_upper == "NÃO ENTREGUE"]))
 
     st.markdown("---")
 
-   # --- GRÁFICO DE LINHA DO TEMPO (GANTT - VERSÃO COM LIMPEZA REFORÇADA) ---
+    # --- GRÁFICO DE LINHA DO TEMPO (GANTT) ---
     st.subheader("⏳ Cronograma de Análises e Prazos")
-    prazos_lista = ["Prazo 1", "Prazo 2", "Prazo 3", "Prazo 4", "Prazo 5", "Prazo 6"]
-    prazos_atuais = [c for c in prazos_lista if c in df.columns]
 
-    if not df.empty and "Data" in df.columns and prazos_atuais:
-        # 1. Criamos a cópia e garantimos que tudo que for vazio vire NaN (nulo oficial)
+    if not df.empty and "Data" in df.columns and col_prazos_existentes:
         df_gantt = df.copy()
-        
-        # 2. Forçamos a conversão e removemos fusos horários (tz-naive) para evitar conflitos
-        df_gantt['Data'] = pd.to_datetime(df_gantt['Data'], dayfirst=True, errors='coerce').dt.tz_localize(None)
-        
-        for c in prazos_atuais:
-            df_gantt[c] = pd.to_datetime(df_gantt[c], dayfirst=True, errors='coerce').dt.tz_localize(None)
+        # Garante que os tipos estão corretos
+        df_gantt['Data'] = pd.to_datetime(df_gantt['Data'], errors='coerce')
+        for c in col_prazos_existentes:
+            df_gantt[c] = pd.to_datetime(df_gantt[c], errors='coerce')
 
-        # 3. Calculamos o Prazo Final ignorando os erros (NaNs)
-        df_gantt['Prazo_Final'] = df_gantt[prazos_atuais].max(axis=1)
-        
-        # 4. FILTRO CRÍTICO: Removemos qualquer linha onde a data de início ou fim seja nula
-        # Isso impede o erro de "TypeError" ou datas inválidas no Plotly
+        df_gantt['Prazo_Final'] = df_gantt[col_prazos_existentes].max(axis=1)
         df_gantt = df_gantt.dropna(subset=['Data', 'Prazo_Final'])
-        
-        # 5. Filtro adicional: Data de Início deve ser menor ou igual à Data de Fim
         df_gantt = df_gantt[df_gantt['Prazo_Final'] >= df_gantt['Data']]
 
         if not df_gantt.empty:
-            hoje = pd.Timestamp.now().normalize()
-            
             def check_timeline_status(row):
                 st_raw = str(row['Status_Amostra']).upper()
                 if "PRONTAS" in st_raw: return "Concluído"
@@ -168,10 +167,11 @@ if not df_original.empty:
             df_gantt['Boletim'] = df_gantt['Boletim'].astype(str)
 
             try:
+                # CORREÇÃO: Usando x_start e x_end para versões recentes do Plotly
                 fig_gantt = px.timeline(
                     df_gantt, 
-                    start="Data", 
-                    end="Prazo_Final", 
+                    x_start="Data", 
+                    x_end="Prazo_Final", 
                     y="Boletim", 
                     color="Status_Timeline",
                     color_discrete_map={
@@ -184,21 +184,24 @@ if not df_original.empty:
                     category_orders={"Boletim": df_gantt.sort_values(by="Data")["Boletim"].unique().tolist()}
                 )
                 fig_gantt.update_yaxes(autorange="reversed")
-                fig_gantt.update_layout(xaxis_title="Duração Estimada", yaxis_title="Nº Boletim")
+                fig_gantt.update_layout(xaxis_title="Período de Análise", yaxis_title="Nº Boletim")
                 st.plotly_chart(fig_gantt, use_container_width=True)
             except Exception as e:
-                st.warning(f"Atenção: Há inconsistência em algumas datas da planilha. Verifique se existem anos incorretos (ex: ano 0024 ou 202). Erro técnico: {e}")
+                st.warning(f"Erro ao gerar cronograma: {e}")
         else:
-            st.info("Nenhuma OS com datas de Início e Prazo preenchidas corretamente para gerar o gráfico.")
+            st.info("Nenhuma OS com datas válidas para exibir o cronograma.")
+
+    st.markdown("---")
+
     # --- GRÁFICOS COMPLEMENTARES ---
     c1, c2 = st.columns(2)
     with c1:
         if "Status_Amostra" in df.columns:
-            fig_pizza = px.pie(df.dropna(subset=["Status_Amostra"]), names="Status_Amostra", title="Distribuição por Status", hole=0.4, color_discrete_sequence=CORES_LAB)
+            fig_pizza = px.pie(df.dropna(subset=["Status_Amostra"]), names="Status_Amostra", title="Distribuição Geral", hole=0.4, color_discrete_sequence=CORES_LAB)
             st.plotly_chart(fig_pizza, use_container_width=True)
     with c2:
         if "Demandante" in df.columns and "Qtdade" in df.columns:
-            fig_barra = px.bar(df, x="Demandante", y="Qtdade", color="Matriz" if "Matriz" in df.columns else None, title="Volume por Demandante", color_discrete_sequence=CORES_LAB)
+            fig_barra = px.bar(df, x="Demandante", y="Qtdade", color="Matriz" if "Matriz" in df.columns else None, title="Amostras por Demandante", color_discrete_sequence=CORES_LAB)
             st.plotly_chart(fig_barra, use_container_width=True)
 
     # --- TABELA DE DETALHAMENTO ---
@@ -206,18 +209,16 @@ if not df_original.empty:
     conf_col = {
         "Link do Boletim": st.column_config.LinkColumn("Boletim", display_text="Abrir 📄"),
         "Data": st.column_config.DateColumn("Registro", format="DD/MM/YYYY"),
-        "Prazo 1": st.column_config.DateColumn("Prazo 1", format="DD/MM/YYYY"),
-        "Prazo 2": st.column_config.DateColumn("Prazo 2", format="DD/MM/YYYY"),
-        "Prazo 3": st.column_config.DateColumn("Prazo 3", format="DD/MM/YYYY"),
-        "Prazo 4": st.column_config.DateColumn("Prazo 4", format="DD/MM/YYYY"),
-        "Prazo 5": st.column_config.DateColumn("Prazo 5", format="DD/MM/YYYY"),
-        "Prazo 6": st.column_config.DateColumn("Prazo 6", format="DD/MM/YYYY")
+        "Prazo 1": st.column_config.DateColumn("P1", format="DD/MM/YYYY"),
+        "Prazo 2": st.column_config.DateColumn("P2", format="DD/MM/YYYY"),
+        "Prazo 3": st.column_config.DateColumn("P3", format="DD/MM/YYYY"),
+        "Prazo 4": st.column_config.DateColumn("P4", format="DD/MM/YYYY"),
+        "Prazo 5": st.column_config.DateColumn("P5", format="DD/MM/YYYY"),
+        "Prazo 6": st.column_config.DateColumn("P6", format="DD/MM/YYYY")
     }
 
     if colunas_visiveis:
         st.dataframe(df[colunas_visiveis], use_container_width=True, hide_index=True, column_config=conf_col)
     
 else:
-    st.warning("Conexão com a planilha falhou ou não há dados com os filtros selecionados.")
-
-
+    st.warning("Verifique a conexão com a planilha ou se o nome da aba está correto como 'REGISTRO'.")
